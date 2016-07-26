@@ -16,3 +16,4 @@ hs_err_pid*
 /.idea
 out.arff
 /src/biarcs.00-of-99
+/input/reduced_corpus
