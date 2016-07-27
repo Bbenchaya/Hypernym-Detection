@@ -1,5 +1,6 @@
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Job;
@@ -22,7 +23,7 @@ public class Phase1 {
     private static int DPmin;
     private static String pathsFilename;
 
-    class Mapper1 extends Mapper<Text, Text, Text, Text> {
+    static class Mapper1 extends Mapper<LongWritable, Text, Text, Text> {
 
         private Stemmer stemmer;
 
@@ -32,7 +33,9 @@ public class Phase1 {
         }
 
         @Override
-        public void map(Text key, Text value, Context context) throws IOException, InterruptedException {
+        public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+            System.out.println(value);
+
             // construct tree from ngram
             // stem words
             // for each dep-path, emit shit
@@ -81,6 +84,8 @@ public class Phase1 {
         job.setJarByClass(Phase1.class);
         job.setMapperClass(Mapper1.class);
         job.setReducerClass(Reducer1.class);
+        job.setMapOutputKeyClass(Text.class);
+        job.setMapOutputValueClass(Text.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
         job.setNumReduceTasks(1);

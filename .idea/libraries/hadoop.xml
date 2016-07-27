@@ -1,0 +1,12 @@
+<component name="libraryTable">
+  <library name="hadoop">
+    <CLASSES>
+      <root url="file://$PROJECT_DIR$/../hadoop-2.7.2/share/hadoop" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="file://$PROJECT_DIR$/../hadoop-2.7.2/share/hadoop/common/jdiff" />
+      <root url="file://$PROJECT_DIR$/../hadoop-2.7.2/share/hadoop/hdfs/jdiff" />
+    </SOURCES>
+  </library>
+</component>

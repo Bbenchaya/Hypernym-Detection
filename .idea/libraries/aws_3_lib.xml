@@ -1,0 +1,10 @@
+<component name="libraryTable">
+  <library name="aws\3\lib">
+    <CLASSES>
+      <root url="file://$PROJECT_DIR$/../jars/aws-java-sdk-1.10.64/third-party/lib" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+    <jarDirectory url="file://$PROJECT_DIR$/../jars/aws-java-sdk-1.10.64/third-party/lib" recursive="false" />
+  </library>
+</component>

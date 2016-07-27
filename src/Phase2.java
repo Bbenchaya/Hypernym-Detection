@@ -18,7 +18,7 @@ public class Phase2 {
 
     static String pathsFileHDFSPath;
 
-    class Mapper2 extends Mapper<Text, Text, Text, WritableLongPair> {
+    static class Mapper2 extends Mapper<Text, Text, Text, WritableLongPair> {
 
         File pathsFile;
 
