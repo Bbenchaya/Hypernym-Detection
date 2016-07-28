@@ -1,4 +1,5 @@
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -9,10 +10,7 @@ import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 
 /**
  * Created by asafchelouche on 26/7/16.
@@ -22,6 +20,7 @@ public class Phase1 {
 
     private static int DPmin;
     private static String pathsFilename;
+    private static FileSystem hdfs;
 
     static class Mapper1 extends Mapper<LongWritable, Text, Text, Text> {
 
@@ -34,16 +33,44 @@ public class Phase1 {
 
         @Override
         public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
-            System.out.println(value);
-
-            // construct tree from ngram
-            // stem words
-            // for each dep-path, emit shit
+            String[] components = value.toString().split("\t");
+            String ngram = components[1];
+            String[] parts = ngram.split(" ");
+            Node[] nodes = getNodes(parts);
+            Node root = constructParsedTree(nodes);
+            searchDependencyPath(root, "", "", context);
         }
 
-        @Override
-        public void cleanup(Context context) {
+        private Node[] getNodes(String[] parts) {
+            Node[] partsAsNodes = new Node[parts.length];
+            for (int i = 0; i < parts.length; i++) {
+                String[] ngramEntryComponents = parts[i].split("/");
+                partsAsNodes[i] = new Node(ngramEntryComponents, stemmer);
+            }
+            return partsAsNodes;
+        }
 
+        private Node constructParsedTree(Node[] nodes) {
+            int rootIndex = 0;
+            for (int i = 0; i < nodes.length; i++) {
+                if (nodes[i].getFather() > 0)
+                    nodes[nodes[i].getFather() - 1].addChild(nodes[i]);
+                else
+                    rootIndex = i;
+            }
+            return nodes[rootIndex];
+        }
+
+        private void searchDependencyPath(Node node, String acc, String firstWord, Context context) throws IOException, InterruptedException {
+            if (node.isNoun() && acc.isEmpty())
+                for (Node child : node.getChildren())
+                    searchDependencyPath(child, node.getDepencdencyPathComponent(), node.getWord(), context);
+            else if (node.isNoun()) {
+                    context.write(new Text(acc + ":" + node.getDepencdencyPathComponent()), new Text(firstWord + "$" + node.getWord()));
+            } else { // node isn't noun, but the accumulator isn't empty
+                for (Node child : node.getChildren())
+                    searchDependencyPath(child, acc.isEmpty() ? acc : acc + ":" + node.getDepencdencyPathComponent(), firstWord, context);
+            }
         }
 
     }
@@ -58,18 +85,39 @@ public class Phase1 {
         @Override
         public void setup(Context context) throws IOException {
             featureCounter = context.getCounter(CountersEnum.class.getName(), CountersEnum.NUM_OF_FEATURES.toString());
-            pathsFile = new File("pathsFileHDFSPath.txt");
+            pathsFile = new File(pathsFilename);
             bw = new BufferedWriter(new FileWriter(pathsFile));
         }
 
         @Override
-        public void reduce(Text key, Iterable<Text> counts, Context context) throws IOException, InterruptedException {
-
+        public void reduce(Text key, Iterable<Text> pairsOfNouns, Context context) throws IOException, InterruptedException {
+            long length = 0l;
+            for (Text nounPair : pairsOfNouns)
+                length++;
+            if (length >= DPmin) {
+                bw.write(key.toString() + "\n");
+                for (Text nounPair : pairsOfNouns)
+                    context.write(nounPair, key);
+            }
         }
 
         @Override
-        public void cleanup(Context context) {
-            // TODO write paths-file to HDFS
+        public void cleanup(Context context) throws IOException {
+            bw.flush();
+            bw.close();
+            InputStream in = new FileInputStream(pathsFile);
+            Path hdfsFile = new Path(pathsFilename);
+            try {
+                OutputStream out = hdfs.create(hdfsFile);
+                byte buffer[] = new byte[4096];
+                int bytesRead = 0;
+                while((bytesRead = in.read(buffer)) > 0)
+                    out.write(buffer, 0, bytesRead);
+                in.close();
+                out.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
     }
@@ -92,6 +140,7 @@ public class Phase1 {
         FileInputFormat.addInputPath(job, new Path(args[0]));
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
         System.out.println("Phase 1 - input path: " + args[0] + ", output path: " + args[1]);
+        hdfs = FileSystem.get(conf);
         if (job.waitForCompletion(true))
             System.out.println("Phase 1: job completed successfully");
         else

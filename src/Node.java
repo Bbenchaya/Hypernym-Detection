@@ -8,42 +8,45 @@ import java.util.List;
 
 class Node {
 
-    private String w1;
-    private String w2;
-    private int index;
+    private String word;
     private String pos_tag; // part of speech
     private String dep_label; // stanford dependency
+    private int father;
     private List<Node> children;
 
-
-    public Node(String w1, String w2, int index, String pos_tag, String dep_label) {
-        this.w1 = w1;
-        this.w2 = w2;
-        this.index = index;
-        this.pos_tag = pos_tag;
-        this.dep_label = dep_label;
-        children = new LinkedList<Node>();
+    Node(String[] args, Stemmer stemmer) {
+        stemmer.add(args[0].toCharArray(), args[0].length());
+        stemmer.stem();
+        this.word = stemmer.toString();
+        this.pos_tag = args[1];
+        this.dep_label = args[2];
+        this.father = Integer.parseInt(args[3]);
+        children = new LinkedList<>();
     }
 
-    public void addChild(Node child) {
+    String getWord() {
+        return word;
+    }
+
+    void addChild(Node child) {
         children.add(child);
     }
 
-    public int getIndex() {
-        return index;
+    int getFather() {
+        return father;
     }
 
-    public String getW2() {
-        return w2;
+    String getDepencdencyPathComponent() {
+//        return String.join(":", word, pos_tag); // for later use?
+        return pos_tag;
     }
 
-    public String getW1() {
-        return w1;
+    boolean isNoun() {
+        return pos_tag.equals("NN") || pos_tag.equals("NNS") || pos_tag.equals("NNP") || pos_tag.equals("NNPS");
     }
 
-    public String getDependencyPath() {
-        // TODO implement
-        return "";
+    List<Node> getChildren() {
+        return children;
     }
 
 }
