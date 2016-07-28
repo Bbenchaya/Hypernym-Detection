@@ -58,7 +58,7 @@ public class Phase2 {
             }
             if (found) {
                 count.setL1(index);
-                context.write(new Text(parts[1]), count);
+                context.write(new Text(parts[0]), count);
             }
         }
 
@@ -94,9 +94,11 @@ public class Phase2 {
         private final String BUCKET = "dsps162assignment3benasaf";
         private final String HYPERNYM_LIST = "hypernym.txt";
         private long numOfFeatures;
+        private Stemmer stemmer;
 
         @Override
         public void setup(Context context) throws IOException {
+            stemmer = new Stemmer();
             numOfFeatures = Phase1.numOfFeatures;
             AmazonS3 s3 = new AmazonS3Client();
             Region usEast1 = Region.getRegion(Regions.US_EAST_1);
@@ -107,6 +109,12 @@ public class Phase2 {
             String line = null;
             while ((line = br.readLine()) != null) {
                 String[] pieces = line.split("\\s");
+                stemmer.add(pieces[0].toCharArray(), pieces[0].length());
+                stemmer.stem();
+                pieces[0] = stemmer.toString();
+                stemmer.add(pieces[1].toCharArray(), pieces[1].length());
+                stemmer.stem();
+                pieces[1] = stemmer.toString();
                 testSet.put(pieces[0] + "$" + pieces[1], pieces[2].equals("True"));
             }
             br.close();
@@ -114,7 +122,26 @@ public class Phase2 {
 
         @Override
         public void reduce(Text key, Iterable<WritableLongPair> counts, Context context) throws IOException, InterruptedException {
-
+            StringBuilder sb = new StringBuilder();
+            sb.append(key.toString().replaceAll("[$]", ",")).append(",");
+            long oldIndex = 0;
+            long sum = 0;
+            for (WritableLongPair pair : counts) {
+                if (oldIndex != pair.getL1()) {
+                    sb.append(sum).append(",");
+                    for (long curr = oldIndex; curr < pair.getL1(); curr++)
+                        sb.append("0,");
+                    oldIndex = pair.getL1();
+                    sum = pair.getL2();
+                }
+                else {
+                    sum += pair.getL2();
+                }
+            }
+            if (testSet.containsKey(key.toString())) {
+                sb.append(testSet.get(key.toString()));
+                context.write(key, new Text(sb.toString()));
+            }
         }
 
         @Override
@@ -138,6 +165,7 @@ public class Phase2 {
         job.setMapOutputValueClass(WritableLongPair.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
+        // TODO set comparator class
         job.setNumReduceTasks(1);
         FileInputFormat.addInputPath(job, new Path(args[0]));
         FileOutputFormat.setOutputPath(job, new Path(args[1]));

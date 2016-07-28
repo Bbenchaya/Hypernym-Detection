@@ -34,6 +34,8 @@ public class Phase1 {
             stemmer = new Stemmer();
         }
 
+
+        // TODO FIX THIS - MAPPER WRITES CRAP TO CONTEXT
         @Override
         public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
             String[] components = value.toString().split("\t");
