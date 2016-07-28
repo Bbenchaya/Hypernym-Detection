@@ -17,6 +17,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.HashMap;
@@ -46,9 +47,9 @@ public class Phase2 {
             long index = 0;
             boolean found = false;
             String line;
+            String[] parts = value.toString().split("\\s");
             while ((line = br.readLine()) != null) {
-                String[] parts = line.split("\\s");
-                if (parts[1].equals(value.toString())) {
+                if (parts[1].equals(line)) {
                     found = true;
                     break;
                 }
@@ -57,7 +58,6 @@ public class Phase2 {
             }
             if (found) {
                 count.setL1(index);
-                String[] parts = value.toString().split("\\s");
                 context.write(new Text(parts[1]), count);
             }
         }
@@ -103,13 +103,13 @@ public class Phase2 {
             s3.setRegion(usEast1);
             S3Object object = s3.getObject(new GetObjectRequest(BUCKET, HYPERNYM_LIST));
             testSet = new HashMap<>();
-            Scanner scanner = new Scanner(object.getObjectContent());
-            while (scanner.hasNextLine()) {
-                String line = scanner.nextLine();
+            BufferedReader br = new BufferedReader(new InputStreamReader(object.getObjectContent()));
+            String line = null;
+            while ((line = br.readLine()) != null) {
                 String[] pieces = line.split("\\s");
                 testSet.put(pieces[0] + "$" + pieces[1], pieces[2].equals("True"));
             }
-            scanner.close();
+            br.close();
         }
 
         @Override
@@ -132,8 +132,8 @@ public class Phase2 {
         Job job = Job.getInstance(conf, "Phase 2");
         job.setJarByClass(Phase2.class);
         job.setMapperClass(Mapper2.class);
-        job.setCombinerClass(Combiner2.class);
-//        job.setReducerClass(Reducer2.class);
+//        job.setCombinerClass(Combiner2.class);
+        job.setReducerClass(Reducer2.class);
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(WritableLongPair.class);
         job.setOutputKeyClass(Text.class);
