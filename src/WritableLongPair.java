@@ -77,4 +77,12 @@ public class WritableLongPair implements Writable {
     public long getL2() {
         return l2;
     }
+
+    public void setL1(long l1) {
+        this.l1 = l1;
+    }
+
+    public void setL2(long l2) {
+        this.l2 = l2;
+    }
 }

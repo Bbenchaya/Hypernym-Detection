@@ -1,5 +1,13 @@
+import com.amazonaws.regions.Region;
+import com.amazonaws.regions.Regions;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.GetObjectRequest;
+import com.amazonaws.services.s3.model.S3Object;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Job;
@@ -8,48 +16,64 @@ import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
-import java.io.File;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.HashMap;
+import java.util.Scanner;
 
 /**
  * Created by asafchelouche on 26/7/16.
  */
 public class Phase2 {
 
-    static String pathsFileHDFSPath;
+    static String pathsListFilename;
+    private static FileSystem hdfs;
 
-    static class Mapper2 extends Mapper<Text, Text, Text, WritableLongPair> {
+    static class Mapper2 extends Mapper<LongWritable, Text, Text, WritableLongPair> {
 
-        File pathsFile;
+        private BufferedReader br;
+        private WritableLongPair count;
 
         @Override
         public void setup(Context context) throws IOException, InterruptedException {
-            pathsFile = new File(pathsFileHDFSPath);
+            count = new WritableLongPair(0, 1);
+            br = new BufferedReader(new InputStreamReader(hdfs.open(new Path(pathsListFilename))));
         }
 
         @Override
-        public void map(Text key, Text value, Context context) throws IOException, InterruptedException {
-
+        public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+            long index = 0;
+            boolean found = false;
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] parts = line.split("\\s");
+                if (parts[1].equals(value.toString())) {
+                    found = true;
+                    break;
+                }
+                else
+                    index++;
+            }
+            if (found) {
+                count.setL1(index);
+                String[] parts = value.toString().split("\\s");
+                context.write(new Text(parts[1]), count);
+            }
         }
 
         @Override
-        public void cleanup(Context context) {
-
+        public void cleanup(Context context) throws IOException {
+            br.close();
         }
 
     }
 
     static class Combiner2 extends Reducer<Text, WritableLongPair, Text, WritableLongPair> {
 
-        private Counter featureCounter;
-        enum CountersEnum {NUM_OF_FEATURES}
-        long numOfFeatures;
-
-
         @Override
         public void setup(Context context) throws IOException {
-            featureCounter = context.getCounter(CountersEnum.class.getName(), CountersEnum.NUM_OF_FEATURES.toString());
-            numOfFeatures = featureCounter.getValue();
+
         }
 
         @Override
@@ -66,15 +90,26 @@ public class Phase2 {
 
     static class Reducer2 extends Reducer<Text, WritableLongPair, Text, Text> {
 
-        private Counter featureCounter;
-        enum CountersEnum {NUM_OF_FEATURES}
-        long numOfFeatures;
-
+        private HashMap<String, Boolean> testSet;
+        private final String BUCKET = "dsps162assignment3benasaf";
+        private final String HYPERNYM_LIST = "hypernym.txt";
+        private long numOfFeatures;
 
         @Override
         public void setup(Context context) throws IOException {
-            featureCounter = context.getCounter(CountersEnum.class.getName(), CountersEnum.NUM_OF_FEATURES.toString());
-            numOfFeatures = featureCounter.getValue();
+            numOfFeatures = Phase1.numOfFeatures;
+            AmazonS3 s3 = new AmazonS3Client();
+            Region usEast1 = Region.getRegion(Regions.US_EAST_1);
+            s3.setRegion(usEast1);
+            S3Object object = s3.getObject(new GetObjectRequest(BUCKET, HYPERNYM_LIST));
+            testSet = new HashMap<>();
+            Scanner scanner = new Scanner(object.getObjectContent());
+            while (scanner.hasNextLine()) {
+                String line = scanner.nextLine();
+                String[] pieces = line.split("\\s");
+                testSet.put(pieces[0] + "$" + pieces[1], pieces[2].equals("True"));
+            }
+            scanner.close();
         }
 
         @Override
@@ -92,13 +127,13 @@ public class Phase2 {
     public static void main(String[] args) throws Exception {
         if (args.length != 3)
             throw new IOException("Phase 2: supply 3 arguments");
-        pathsFileHDFSPath = args[2];
+        pathsListFilename = args[2];
         Configuration conf = new Configuration();
         Job job = Job.getInstance(conf, "Phase 2");
         job.setJarByClass(Phase2.class);
         job.setMapperClass(Mapper2.class);
         job.setCombinerClass(Combiner2.class);
-        job.setReducerClass(Reducer2.class);
+//        job.setReducerClass(Reducer2.class);
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(WritableLongPair.class);
         job.setOutputKeyClass(Text.class);
@@ -107,6 +142,7 @@ public class Phase2 {
         FileInputFormat.addInputPath(job, new Path(args[0]));
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
         System.out.println("Phase 2 - input path: " + args[0] + ", output path: " + args[1]);
+        hdfs = FileSystem.get(conf);
         if (job.waitForCompletion(true))
             System.out.println("Phase 2: job completed successfully");
         else

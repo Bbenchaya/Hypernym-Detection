@@ -11,6 +11,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.*;
+import java.util.LinkedList;
 
 /**
  * Created by asafchelouche on 26/7/16.
@@ -21,6 +22,7 @@ public class Phase1 {
     private static int DPmin;
     private static String pathsFilename;
     private static FileSystem hdfs;
+    static long numOfFeatures;
 
     static class Mapper1 extends Mapper<LongWritable, Text, Text, Text> {
 
@@ -89,32 +91,38 @@ public class Phase1 {
         enum CountersEnum {NUM_OF_FEATURES}
         private File pathsFile;
         private BufferedWriter bw;
+        FileWriter fw;
 
         @Override
         public void setup(Context context) throws IOException {
             featureCounter = context.getCounter(CountersEnum.class.getName(), CountersEnum.NUM_OF_FEATURES.toString());
             pathsFile = new File(pathsFilename);
             bw = new BufferedWriter(new FileWriter(pathsFile));
+            fw = new FileWriter(pathsFile);
         }
 
         @Override
         public void reduce(Text key, Iterable<Text> pairsOfNouns, Context context) throws IOException, InterruptedException {
             long length = 0l;
+            LinkedList<Text> pairsCopy = new LinkedList<>();
             for (Text nounPair : pairsOfNouns)
-                length++;
-            if (length >= DPmin) {
-                bw.write(key.toString() + "\n");
-                for (Text nounPair : pairsOfNouns)
+                pairsCopy.add(nounPair);
+            if (pairsCopy.size() >= DPmin) {
+                featureCounter.increment(1L);
+                numOfFeatures++;
+                fw.write(key.toString() + "\n");
+                for (Text nounPair : pairsCopy)
                     context.write(nounPair, key);
             }
         }
 
         @Override
         public void cleanup(Context context) throws IOException {
+            fw.close();
             bw.flush();
             bw.close();
             InputStream in = new FileInputStream(pathsFile);
-            Path hdfsFile = new Path(pathsFilename);
+            Path hdfsFile = new Path("paths.txt");
             try {
                 OutputStream out = hdfs.create(hdfsFile);
                 byte buffer[] = new byte[4096];
@@ -135,6 +143,7 @@ public class Phase1 {
             throw new IOException("Phase 1: supply 4 arguments");
         DPmin = Integer.parseInt(args[2]);
         pathsFilename = args[3];
+        numOfFeatures = 0;
         Configuration conf = new Configuration();
         Job job = Job.getInstance(conf, "Phase 1");
         job.setJarByClass(Phase1.class);
