@@ -25,6 +25,7 @@ public class Phase1 {
     static class Mapper1 extends Mapper<LongWritable, Text, Text, Text> {
 
         private Stemmer stemmer;
+        private final String REGEX = "[^a-zA-Z ]+";
 
         @Override
         public void setup(Context context) throws IOException, InterruptedException {
@@ -37,6 +38,8 @@ public class Phase1 {
             String ngram = components[1];
             String[] parts = ngram.split(" ");
             Node[] nodes = getNodes(parts);
+            if (nodes == null)
+                return;
             Node root = constructParsedTree(nodes);
             searchDependencyPath(root, "", "", context);
         }
@@ -45,6 +48,11 @@ public class Phase1 {
             Node[] partsAsNodes = new Node[parts.length];
             for (int i = 0; i < parts.length; i++) {
                 String[] ngramEntryComponents = parts[i].split("/");
+                if (i == 0) {
+                    ngramEntryComponents[0] = ngramEntryComponents[0].replaceAll(REGEX, "");
+                    if (ngramEntryComponents[0].replaceAll(REGEX, "").isEmpty())
+                        return null;
+                }
                 partsAsNodes[i] = new Node(ngramEntryComponents, stemmer);
             }
             return partsAsNodes;
