@@ -1,3 +1,4 @@
+import org.apache.commons.collections.IterableMap;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -11,6 +12,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.*;
+import java.util.Iterator;
 import java.util.LinkedList;
 
 /**
@@ -78,7 +80,9 @@ public class Phase1 {
                 for (Node child : node.getChildren())
                     searchDependencyPath(child, node.getDepencdencyPathComponent(), node.getWord(), context);
             else if (node.isNoun()) {
-                    context.write(new Text(acc + ":" + node.getDepencdencyPathComponent()), new Text(firstWord + "$" + node.getWord()));
+                    Text a = new Text(acc + ":" + node.getDepencdencyPathComponent());
+                    Text b = new Text(firstWord + "$" + node.getWord());
+                    context.write(a, b);
             } else { // node isn't noun, but the accumulator isn't empty
                 for (Node child : node.getChildren())
                     searchDependencyPath(child, acc.isEmpty() ? acc : acc + ":" + node.getDepencdencyPathComponent(), firstWord, context);
@@ -108,7 +112,7 @@ public class Phase1 {
             long length = 0l;
             LinkedList<Text> pairsCopy = new LinkedList<>();
             for (Text nounPair : pairsOfNouns)
-                pairsCopy.add(nounPair);
+                pairsCopy.add(new Text(nounPair));
             if (pairsCopy.size() >= DPmin) {
                 featureCounter.increment(1L);
                 numOfFeatures++;
