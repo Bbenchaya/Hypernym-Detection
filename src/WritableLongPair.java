@@ -1,4 +1,4 @@
-import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.WritableComparable;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -8,7 +8,7 @@ import java.io.IOException;
  * Created by asafchelouche on 6/6/16.
  */
 
-public class WritableLongPair implements Writable {
+public class WritableLongPair implements WritableComparable {
 
     private long l1;
     private long l2;
@@ -85,4 +85,15 @@ public class WritableLongPair implements Writable {
     public void setL2(long l2) {
         this.l2 = l2;
     }
+
+    @Override
+    public int compareTo(Object other){
+        long ol1 = ((WritableLongPair)other).l1;
+        if (l1 == ol1)
+            return 0;
+        else if (l1 > ol1)
+            return 1;
+        else return -1;
+    }
+
 }

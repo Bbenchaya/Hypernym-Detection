@@ -17,11 +17,9 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.HashMap;
-import java.util.Scanner;
 
 /**
  * Created by asafchelouche on 26/7/16.
@@ -39,7 +37,6 @@ public class Phase2 {
         @Override
         public void setup(Context context) throws IOException, InterruptedException {
             count = new WritableLongPair(0, 1);
-            br = new BufferedReader(new InputStreamReader(hdfs.open(new Path(pathsListFilename))));
         }
 
         @Override
@@ -48,6 +45,7 @@ public class Phase2 {
             boolean found = false;
             String line;
             String[] parts = value.toString().split("\\s");
+            br = new BufferedReader(new InputStreamReader(hdfs.open(new Path(pathsListFilename))));
             while ((line = br.readLine()) != null) {
                 if (parts[1].equals(line)) {
                     found = true;
@@ -60,10 +58,6 @@ public class Phase2 {
                 count.setL1(index);
                 context.write(new Text(parts[0]), count);
             }
-        }
-
-        @Override
-        public void cleanup(Context context) throws IOException {
             br.close();
         }
 
@@ -123,13 +117,13 @@ public class Phase2 {
         @Override
         public void reduce(Text key, Iterable<WritableLongPair> counts, Context context) throws IOException, InterruptedException {
             StringBuilder sb = new StringBuilder();
-            sb.append(key.toString().replaceAll("[$]", ",")).append(",");
+//            sb.append(key.toString().replaceAll("[$]", ",")).append(",");
             long oldIndex = 0;
             long sum = 0;
             for (WritableLongPair pair : counts) {
                 if (oldIndex != pair.getL1()) {
                     sb.append(sum).append(",");
-                    for (long curr = oldIndex; curr < pair.getL1(); curr++)
+                    for (long curr = oldIndex + 1; curr < pair.getL1(); curr++)
                         sb.append("0,");
                     oldIndex = pair.getL1();
                     sum = pair.getL2();
@@ -138,6 +132,9 @@ public class Phase2 {
                     sum += pair.getL2();
                 }
             }
+            sb.append(sum).append(",");
+            for (long curr = oldIndex + 1; curr < numOfFeatures; curr++)
+                sb.append("0,");
             if (testSet.containsKey(key.toString())) {
                 sb.append(testSet.get(key.toString()));
                 context.write(key, new Text(sb.toString()));
@@ -148,8 +145,22 @@ public class Phase2 {
         public void cleanup(Context context) {
 
         }
-
     }
+
+//    private static class WritableLongPairComparator extends WritableComparator{
+//
+//        @Override
+//        public int compare(WritableComparable wlp1, WritableComparable wlp2){
+//            return wlp1.compareTo(wlp2);
+//
+//        }
+//
+//        @Override
+//        public int compare(byte[] bytes1, int s1, int l1, byte[] bytes2, int s2, int l2) {
+//            return 0;
+//        }
+//
+//    }
 
     public static void main(String[] args) throws Exception {
         if (args.length != 3)
@@ -165,7 +176,7 @@ public class Phase2 {
         job.setMapOutputValueClass(WritableLongPair.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
-        // TODO set comparator class
+//        job.setSortComparatorClass(WritableLongPairComparator.class);
         job.setNumReduceTasks(1);
         FileInputFormat.addInputPath(job, new Path(args[0]));
         FileOutputFormat.setOutputPath(job, new Path(args[1]));

@@ -1,4 +1,3 @@
-import org.apache.commons.collections.IterableMap;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -12,7 +11,6 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.*;
-import java.util.Iterator;
 import java.util.LinkedList;
 
 /**
@@ -37,7 +35,6 @@ public class Phase1 {
         }
 
 
-        // TODO FIX THIS - MAPPER WRITES CRAP TO CONTEXT
         @Override
         public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
             String[] components = value.toString().split("\t");
@@ -93,15 +90,12 @@ public class Phase1 {
 
     static class Reducer1 extends Reducer<Text, Text, Text, Text> {
 
-        private Counter featureCounter;
-        enum CountersEnum {NUM_OF_FEATURES}
         private File pathsFile;
         private BufferedWriter bw;
         FileWriter fw;
 
         @Override
         public void setup(Context context) throws IOException {
-            featureCounter = context.getCounter(CountersEnum.class.getName(), CountersEnum.NUM_OF_FEATURES.toString());
             pathsFile = new File(pathsFilename);
             bw = new BufferedWriter(new FileWriter(pathsFile));
             fw = new FileWriter(pathsFile);
@@ -109,12 +103,10 @@ public class Phase1 {
 
         @Override
         public void reduce(Text key, Iterable<Text> pairsOfNouns, Context context) throws IOException, InterruptedException {
-            long length = 0l;
             LinkedList<Text> pairsCopy = new LinkedList<>();
             for (Text nounPair : pairsOfNouns)
                 pairsCopy.add(new Text(nounPair));
             if (pairsCopy.size() >= DPmin) {
-                featureCounter.increment(1L);
                 numOfFeatures++;
                 fw.write(key.toString() + "\n");
                 for (Text nounPair : pairsCopy)
