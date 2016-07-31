@@ -29,7 +29,7 @@ public class Phase2 {
     static String pathsListFilename;
     private static FileSystem hdfs;
 
-    static class Mapper2 extends Mapper<LongWritable, Text, Text, WritableLongPair> {
+    public static class Mapper2 extends Mapper<LongWritable, Text, Text, WritableLongPair> {
 
         private BufferedReader br;
         private WritableLongPair count;
@@ -45,7 +45,7 @@ public class Phase2 {
             boolean found = false;
             String line;
             String[] parts = value.toString().split("\\s");
-            br = new BufferedReader(new InputStreamReader(hdfs.open(new Path("a" + pathsListFilename))));
+            br = new BufferedReader(new InputStreamReader(hdfs.open(new Path(pathsListFilename))));
             while ((line = br.readLine()) != null) {
                 if (parts[1].equals(line)) {
                     found = true;
@@ -63,11 +63,11 @@ public class Phase2 {
 
     }
 
-    static class Reducer2 extends Reducer<Text, WritableLongPair, Text, Text> {
+    public static class Reducer2 extends Reducer<Text, WritableLongPair, Text, Text> {
 
         private HashMap<String, Boolean> testSet;
         private final String BUCKET = "dsps162assignment3benasaf";
-        private final String HYPERNYM_LIST = "hypernym.txt";
+        private final String HYPERNYM_LIST = "resource/hypernym.txt";
         private long numOfFeatures;
         private Stemmer stemmer;
 

@@ -24,7 +24,7 @@ public class Phase1 {
     private static FileSystem hdfs;
     static long numOfFeatures;
 
-    static class Mapper1 extends Mapper<LongWritable, Text, Text, Text> {
+    public static class Mapper1 extends Mapper<LongWritable, Text, Text, Text> {
 
         private Stemmer stemmer;
         private final String REGEX = "[^a-zA-Z ]+";
@@ -91,15 +91,18 @@ public class Phase1 {
 
     }
 
-    static class Reducer1 extends Reducer<Text, Text, Text, Text> {
+    public static class Reducer1 extends Reducer<Text, Text, Text, Text> {
 
-        private File pathsFile;
+        private Path hdfsFile;
+        private OutputStream out;
         private BufferedWriter bw;
 
         @Override
         public void setup(Context context) throws IOException {
-            pathsFile = new File(pathsFilename);
-            bw = new BufferedWriter(new FileWriter(pathsFile));
+            hdfsFile = new Path(pathsFilename);
+            out = hdfs.create(hdfsFile);
+            bw = new BufferedWriter(new OutputStreamWriter(out, "UTF-8"));
+
         }
 
         @Override
@@ -118,21 +121,9 @@ public class Phase1 {
         @Override
         public void cleanup(Context context) throws IOException {
             System.out.println("Features vector length: " + numOfFeatures);
-            bw.flush();
             bw.close();
-            InputStream in = new FileInputStream(pathsFile);
-            Path hdfsFile = new Path("a" + pathsFilename);
-            try {
-                OutputStream out = hdfs.create(hdfsFile);
-                byte buffer[] = new byte[4096];
-                int bytesRead = 0;
-                while((bytesRead = in.read(buffer)) > 0)
-                    out.write(buffer, 0, bytesRead);
-                in.close();
-                out.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            out.close();
+            hdfs.close();
         }
 
     }

@@ -29,13 +29,18 @@ For further information, please consult the [assignment description](https://www
 ```
 ## How to run this on your computer
 
+* Setup your bucket name in `Phase2.java`.
+* Setup all the JobFlowRequest parameters (buckets, etc.) in `HDetector.java` to your liking.
 * Setup your `CLASSPATH` environment variable to point to Hadoop and AWS SDK for Java.
-* Compile and pack the app to into a JAR.
-* To run the app on EMR:
+* Compile and pack the app to into a JAR. If you're required to use a manifest file, DON'T specify a main class, as this overrides the definitions for the EMR JobFlow request.
+* Upload this JAR to your S3 bucket.
+* To run the app on EMR, while in the folder with all the `.class` files:
 ```
-    java -jar HDetector.jar HDetector <k>
+    java HDetector <k>
 ```
 where `<k>` is the `DPmin` value. 5 is a good starting point for the aforementioned input corpus.
+
+* When the Hadoop cluster finished execution, its output resides in your S3 bucket. Download it and post-process it with `PostProcessor.java` - it's a simple and self-explanatory app.
 
 # License
 
