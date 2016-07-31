@@ -51,11 +51,14 @@ public class Phase1 {
             Node[] partsAsNodes = new Node[parts.length];
             for (int i = 0; i < parts.length; i++) {
                 String[] ngramEntryComponents = parts[i].split("/");
-                if (i == 0) {
-                    ngramEntryComponents[0] = ngramEntryComponents[0].replaceAll(REGEX, "");
-                    if (ngramEntryComponents[0].replaceAll(REGEX, "").isEmpty())
-                        return null;
-                }
+                if (ngramEntryComponents.length != 4)
+                    return null;
+                ngramEntryComponents[0] = ngramEntryComponents[0].replaceAll(REGEX, "");
+                if (ngramEntryComponents[0].replaceAll(REGEX, "").equals(""))
+                    return null;
+                ngramEntryComponents[1] = ngramEntryComponents[1].replaceAll(REGEX, "");
+                if (ngramEntryComponents[1].replaceAll(REGEX, "").equals(""))
+                    return null;
                 partsAsNodes[i] = new Node(ngramEntryComponents, stemmer);
             }
             return partsAsNodes;
@@ -92,13 +95,11 @@ public class Phase1 {
 
         private File pathsFile;
         private BufferedWriter bw;
-        FileWriter fw;
 
         @Override
         public void setup(Context context) throws IOException {
             pathsFile = new File(pathsFilename);
             bw = new BufferedWriter(new FileWriter(pathsFile));
-            fw = new FileWriter(pathsFile);
         }
 
         @Override
@@ -108,7 +109,7 @@ public class Phase1 {
                 pairsCopy.add(new Text(nounPair));
             if (pairsCopy.size() >= DPmin) {
                 numOfFeatures++;
-                fw.write(key.toString() + "\n");
+                bw.write(key.toString() + "\n");
                 for (Text nounPair : pairsCopy)
                     context.write(nounPair, key);
             }
@@ -116,11 +117,11 @@ public class Phase1 {
 
         @Override
         public void cleanup(Context context) throws IOException {
-            fw.close();
+            System.out.println("Features vector length: " + numOfFeatures);
             bw.flush();
             bw.close();
             InputStream in = new FileInputStream(pathsFile);
-            Path hdfsFile = new Path("paths.txt");
+            Path hdfsFile = new Path("a" + pathsFilename);
             try {
                 OutputStream out = hdfs.create(hdfsFile);
                 byte buffer[] = new byte[4096];
@@ -162,41 +163,6 @@ public class Phase1 {
             System.out.println("Phase 1: job completed unsuccessfully");
         Counter counter = job.getCounters().findCounter("org.apache.hadoop.mapreduce.TaskCounter", "REDUCE_INPUT_RECORDS");
         System.out.println("Num of pairs sent to reducers in phase 1: " + counter.getValue());
-//        AmazonS3 s3 = new AmazonS3Client();
-//        Region usEast1 = Region.getRegion(Regions.US_EAST_1);
-//        s3.setRegion(usEast1);
-//        try {
-//            System.out.print("Uploading the corpus description file to S3... ");
-//            File file = new File(WORDS_PER_DECADE_FILENAME);
-//            FileWriter fw = new FileWriter(file);
-//            for (int i = 0; i < NUM_OF_DECADES; i++)
-//                fw.write(Long.toString(job.getCounters().findCounter("Phase1$Mapper1$CountersEnum", "DECADE_" + i).getValue()) + "\n");
-//            fw.flush();
-//            fw.close();
-//            s3.putObject(new PutObjectRequest("dsps162assignment2benasaf/results/", WORDS_PER_DECADE_FILENAME, file));
-//            System.out.println("Done.");
-//            System.out.print("Uploading Phase 1 description file to S3... ");
-//            file = new File(NUM_OF_PAIRS_SENT_TO_REDUCERS_FILENAME);
-//            fw = new FileWriter(file);
-//            fw.write(Long.toString(counter.getValue()) + "\n");
-//            fw.flush();
-//            fw.close();
-//            s3.putObject(new PutObjectRequest("dsps162assignment2benasaf/results/", NUM_OF_PAIRS_SENT_TO_REDUCERS_FILENAME, file));
-//            System.out.println("Done.");
-//        } catch (AmazonServiceException ase) {
-//            System.out.println("Caught an AmazonServiceException, which means your request made it "
-//                    + "to Amazon S3, but was rejected with an error response for some reason.");
-//            System.out.println("Error Message:    " + ase.getMessage());
-//            System.out.println("HTTP Status Code: " + ase.getStatusCode());
-//            System.out.println("AWS Error Code:   " + ase.getErrorCode());
-//            System.out.println("Error Type:       " + ase.getErrorType());
-//            System.out.println("Request ID:       " + ase.getRequestId());
-//        } catch (AmazonClientException ace) {
-//            System.out.println("Caught an AmazonClientException, which means the client encountered "
-//                    + "a serious internal problem while trying to communicate with S3, "
-//                    + "such as not being able to access the network.");
-//            System.out.println("Error Message: " + ace.getMessage());
-//        }
     }
 
 }

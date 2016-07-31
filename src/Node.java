@@ -20,7 +20,11 @@ class Node {
         this.word = stemmer.toString();
         this.pos_tag = args[1];
         this.dep_label = args[2];
-        this.father = Integer.parseInt(args[3]);
+        try {
+            this.father = Integer.parseInt(args[3]);
+
+        } catch (Exception e) {
+        }
         children = new LinkedList<>();
     }
 

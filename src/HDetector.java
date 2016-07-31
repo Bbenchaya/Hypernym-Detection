@@ -7,11 +7,14 @@ public class HDetector {
 
     public static void main(String[] args) throws Exception {
 
-        String[] p1args = {"input", "intermediate", args[0], "pathsFile.txt"};
+        String[] p1args = {"input", "intermediate", args[0], PATHS_LIST_FILENAME};
         String[] p2args = {"intermediate", "output", PATHS_LIST_FILENAME};
 
         Phase1.main(p1args);
         Phase2.main(p2args);
+        String[] ppargs = new String[1];
+        ppargs[0] = String.valueOf(Phase1.numOfFeatures);
+        PostProcessor.main(ppargs);
 
     }
 
