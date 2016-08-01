@@ -30,7 +30,7 @@ For further information, please consult the [assignment description](https://www
 ## How to run this on your computer
 
 * Setup your bucket name in `Phase2.java`.
-* Setup all the JobFlowRequest parameters (buckets, etc.) in `HDetector.java` to your liking.
+* Setup all the JobFlowRequest parameters (buckets, etc.) in `HDetector.java` to your liking. Don't forget to set the EC2 keyname to one that you actually have pre-configured.
 * Setup your `CLASSPATH` environment variable to point to Hadoop and AWS SDK for Java.
 * Compile and pack the app to into a JAR. If you're required to use a manifest file, DON'T specify a main class, as this overrides the definitions for the EMR JobFlow request.
 * Upload this JAR to your S3 bucket.
@@ -40,7 +40,15 @@ For further information, please consult the [assignment description](https://www
 ```
 where `<k>` is the `DPmin` value. 5 is a good starting point for the aforementioned input corpus.
 
-* When the Hadoop cluster finished execution, its output resides in your S3 bucket. Download it and post-process it with `PostProcessor.java` - it's a simple and self-explanatory app.
+* When the Hadoop cluster finishes execution, its output resides in your S3 bucket. Download it and post-process it with `PostProcessor.java` - it's a simple and self-explanatory app.
+* *NOTE* there's an unresolved bug when running the app locally (debug mode) with Java 1.7 and OS X. The only way around it is to compile and run with Java 1.8, and then when all's good, switch back to Java 1.7 in order to compile and create the JAR (EMR doesn't like Java 1.8 for some odd reason).
+
+## How to run this in debug mode
+* In IntelliJ, edit your run configuration like so:
+
+Main class: `org.apache.hadoop.util.RunJar`
+
+Program arguments: `out/artifacts/HDetector/HDetector.jar HDetector 5`
 
 # License
 

@@ -11,17 +11,17 @@ import com.amazonaws.services.elasticmapreduce.model.*;
  */
 public class HDetector {
 
-    private static final String PATHS_LIST_FILENAME = "/paths.txt";
+    static int numOfFeatures;
 
     public static void main(String[] args) throws Exception {
 //        // Local single node setup
-//        String[] p1args = {"input", "intermediate", args[0], PATHS_LIST_FILENAME};
-//        String[] p2args = {"intermediate", "output", PATHS_LIST_FILENAME};
+//        String[] p1args = {"input", "intermediate", args[0]};
+//        String[] p2args = {"intermediate", "output"};
 //
 //        Phase1.main(p1args);
 //        Phase2.main(p2args);
 //        String[] ppargs = new String[1];
-//        ppargs[0] = String.valueOf(Phase1.numOfFeatures);
+//        ppargs[0] = String.valueOf(numOfFeatures);
 //        PostProcessor.main(ppargs);
 
         // EMR setup
@@ -41,7 +41,7 @@ public class HDetector {
         HadoopJarStepConfig jarStep1 = new HadoopJarStepConfig()
                 .withJar("s3n://dsps162assignment3benasaf/jars/HDetector.jar")
                 .withMainClass("Phase1")
-                .withArgs("s3n://dsps162assignment3benasaf/input", "hdfs:///intermediate/", args[0], PATHS_LIST_FILENAME);
+                .withArgs("s3n://dsps162assignment3benasaf/input2", "hdfs:///intermediate/", args[0]);
 
         StepConfig step1Config = new StepConfig()
                 .withName("Phase 1")
@@ -51,7 +51,7 @@ public class HDetector {
         HadoopJarStepConfig jarStep2 = new HadoopJarStepConfig()
                 .withJar("s3n://dsps162assignment3benasaf/jars/HDetector.jar")
                 .withMainClass("Phase2")
-                .withArgs("hdfs:///intermediate/", "s3n://dsps162assignment3benasaf/output", PATHS_LIST_FILENAME);
+                .withArgs("hdfs:///intermediate/", "s3n://dsps162assignment3benasaf/output");
 
         StepConfig step2Config = new StepConfig()
                 .withName("Phase 2")
@@ -60,8 +60,8 @@ public class HDetector {
 
         JobFlowInstancesConfig instances = new JobFlowInstancesConfig()
                 .withInstanceCount(5)
-                .withMasterInstanceType(InstanceType.M1Small.toString())
-                .withSlaveInstanceType(InstanceType.M1Small.toString())
+                .withMasterInstanceType(InstanceType.M1Medium.toString())
+                .withSlaveInstanceType(InstanceType.M1Medium.toString())
                 .withHadoopVersion("2.7.2")
                 .withEc2KeyName("AWS")
                 .withKeepJobFlowAliveWhenNoSteps(false)

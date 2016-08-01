@@ -1,3 +1,10 @@
+import com.amazonaws.regions.Region;
+import com.amazonaws.regions.Regions;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.GetObjectRequest;
+import com.amazonaws.services.s3.model.S3Object;
+
 import java.io.*;
 
 /**
@@ -10,8 +17,12 @@ public class PostProcessor {
 
     public static void main(String[] args) throws IOException {
         int vectorLength = Integer.parseInt(args[0]);
-        BufferedReader br = new BufferedReader(new FileReader("output/part-r-00000"));
-        BufferedWriter bw = new BufferedWriter(new FileWriter("output/processed.arff"));
+        AmazonS3 s3 = new AmazonS3Client();
+        Region usEast1 = Region.getRegion(Regions.US_EAST_1);
+        s3.setRegion(usEast1);
+        S3Object object = s3.getObject(new GetObjectRequest("dsps162assignment3benasaf/output", "part-r-00000"));
+        BufferedReader br = new BufferedReader(new InputStreamReader(object.getObjectContent()));
+        BufferedWriter bw = new BufferedWriter(new FileWriter("processed.arff"));
         String line;
         bw.write(PREFIX);
         for (int i = 0; i < vectorLength; i++)

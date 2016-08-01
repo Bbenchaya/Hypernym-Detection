@@ -5,7 +5,6 @@ import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -16,38 +15,46 @@ import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.HashMap;
+import java.util.Scanner;
 
 /**
  * Created by asafchelouche on 26/7/16.
  */
 public class Phase2 {
 
-    static String pathsListFilename;
-    private static FileSystem hdfs;
-
     public static class Mapper2 extends Mapper<LongWritable, Text, Text, WritableLongPair> {
 
-        private BufferedReader br;
         private WritableLongPair count;
+        private File pathsListCopy;
 
         @Override
         public void setup(Context context) throws IOException, InterruptedException {
             count = new WritableLongPair(0, 1);
+            AmazonS3 s3 = new AmazonS3Client();
+            Region usEast1 = Region.getRegion(Regions.US_EAST_1);
+            s3.setRegion(usEast1);
+            S3Object object = s3.getObject(new GetObjectRequest("dsps162assignment3benasaf/results", "paths.txt"));
+            BufferedReader br = new BufferedReader(new InputStreamReader(object.getObjectContent()));
+            pathsListCopy = new File("pathsListCopy.txt");
+            BufferedWriter bw = new BufferedWriter(new FileWriter(pathsListCopy));
+            String line;
+            while ((line = br.readLine()) != null) {
+                bw.write(line + "\n");
+            }
+            bw.close();
+            br.close();
         }
 
         @Override
         public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
             long index = 0;
             boolean found = false;
-            String line;
             String[] parts = value.toString().split("\\s");
-            br = new BufferedReader(new InputStreamReader(hdfs.open(new Path(pathsListFilename))));
-            while ((line = br.readLine()) != null) {
-                if (parts[1].equals(line)) {
+            Scanner scanner = new Scanner(pathsListCopy);
+            while (scanner.hasNextLine()) {
+                if (parts[1].equals(scanner.nextLine())) {
                     found = true;
                     break;
                 }
@@ -58,7 +65,7 @@ public class Phase2 {
                 count.setL1(index);
                 context.write(new Text(parts[0]), count);
             }
-            br.close();
+            scanner.close();
         }
 
     }
@@ -70,15 +77,22 @@ public class Phase2 {
         private final String HYPERNYM_LIST = "resource/hypernym.txt";
         private long numOfFeatures;
         private Stemmer stemmer;
+        private AmazonS3 s3;
 
         @Override
         public void setup(Context context) throws IOException {
             stemmer = new Stemmer();
-            numOfFeatures = Phase1.numOfFeatures;
-            AmazonS3 s3 = new AmazonS3Client();
+            s3 = new AmazonS3Client();
             Region usEast1 = Region.getRegion(Regions.US_EAST_1);
             s3.setRegion(usEast1);
-            S3Object object = s3.getObject(new GetObjectRequest(BUCKET, HYPERNYM_LIST));
+            System.out.print("Downloading corpus description file from S3... ");
+            S3Object object = s3.getObject(new GetObjectRequest("dsps162assignment3benasaf/results", "numOfFeatures.txt"));
+            System.out.println("Done.");
+            Scanner scanner = new Scanner(new InputStreamReader(object.getObjectContent()));
+            numOfFeatures = scanner.nextInt();
+            System.out.println("Number of features: " + numOfFeatures);
+            scanner.close();
+            object = s3.getObject(new GetObjectRequest(BUCKET, HYPERNYM_LIST));
             testSet = new HashMap<>();
             BufferedReader br = new BufferedReader(new InputStreamReader(object.getObjectContent()));
             String line = null;
@@ -97,36 +111,14 @@ public class Phase2 {
 
         @Override
         public void reduce(Text key, Iterable<WritableLongPair> counts, Context context) throws IOException, InterruptedException {
-//            StringBuilder sb = new StringBuilder();
-//            long oldIndex = 0;
-//            long sum = 0;
-//            for (WritableLongPair pair : counts) {
-//                if (oldIndex != pair.getL1()) {
-//                    sb.append(sum + "(" + oldIndex + ")").append(",");
-//                    for (long curr = oldIndex + 1; curr < pair.getL1(); curr++)
-//                        sb.append("0," + "(" + curr + ")");
-//                    oldIndex = pair.getL1();
-//                    sum = pair.getL2();
-//                }
-//                else {
-//                    sum += pair.getL2();
-//                }
-//            }
-//            sb.append(sum + "(" + oldIndex + ")").append(",");
-//            for (long curr = oldIndex + 1; curr < numOfFeatures; curr++)
-//                sb.append("0," + "(" + curr + ")");
-//            boolean exists = testSet.containsKey(key.toString());
-//            if (exists) {
-//                sb.append(testSet.get(key.toString()));
-//                context.write(key, new Text(sb.toString()));
-//            }
             if (testSet.containsKey(key.toString())) {
-                long[] what = new long[(int) numOfFeatures];
-                for (WritableLongPair count : counts)
-                    what[(int) count.getL1()] += count.getL2();
+                long[] featuresVector = new long[(int) numOfFeatures];
+                for (WritableLongPair count : counts) {
+                    featuresVector[(int) count.getL1()] += count.getL2();
+                }
                 StringBuilder sb = new StringBuilder();
-                for (long i : what)
-                    sb.append(i).append(",");
+                for (long index : featuresVector)
+                    sb.append(index).append(",");
                 sb.append(testSet.get(key.toString()));
                 context.write(key, new Text(sb.toString()));
             }
@@ -136,9 +128,8 @@ public class Phase2 {
     }
 
     public static void main(String[] args) throws Exception {
-        if (args.length != 3)
-            throw new IOException("Phase 2: supply 3 arguments");
-        pathsListFilename = args[2];
+        if (args.length != 2)
+            throw new IOException("Phase 2: supply 2 arguments");
         Configuration conf = new Configuration();
         Job job = Job.getInstance(conf, "Phase 2");
         job.setJarByClass(Phase2.class);
@@ -152,7 +143,6 @@ public class Phase2 {
         FileInputFormat.addInputPath(job, new Path(args[0]));
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
         System.out.println("Phase 2 - input path: " + args[0] + ", output path: " + args[1]);
-        hdfs = FileSystem.get(conf);
         if (job.waitForCompletion(true))
             System.out.println("Phase 2: job completed successfully");
         else
