@@ -40,7 +40,7 @@ For further information, please consult the [assignment description](https://www
 ```
 where `<k>` is the `DPmin` value. 5 is a good starting point for the aforementioned input corpus.
 
-* When the Hadoop cluster finishes execution, its output resides in your S3 bucket. Download it and post-process it with `PostProcessor.java` - it's a simple and self-explanatory app.
+* When the Hadoop cluster finishes execution, its output resides in your S3 bucket. Download it and post-process it with `PostProcessor.java` - it's a simple and self-explanatory app, just don't forget to set the bucket name properly.
 * *NOTE* there's an unresolved bug when running the app locally (debug mode) with Java 1.7 and OS X. The only way around it is to compile and run with Java 1.8, and then when all's good, switch back to Java 1.7 in order to compile and create the JAR (EMR doesn't like Java 1.8 for some odd reason).
 
 ## How to run this in debug mode

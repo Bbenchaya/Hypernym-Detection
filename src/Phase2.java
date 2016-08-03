@@ -22,6 +22,7 @@ import java.util.Scanner;
 /**
  * Created by asafchelouche on 26/7/16.
  */
+
 public class Phase2 {
 
     public static class Mapper2 extends Mapper<LongWritable, Text, Text, WritableLongPair> {
@@ -29,6 +30,12 @@ public class Phase2 {
         private WritableLongPair count;
         private File pathsListCopy;
 
+        /**
+         * Setup a Mapper node. Copies the list of dependency paths from the S3 bucket to the local file system.
+         * @param context the Map-Reduce job context.
+         * @throws IOException
+         * @throws InterruptedException
+         */
         @Override
         public void setup(Context context) throws IOException, InterruptedException {
             count = new WritableLongPair(0, 1);
@@ -47,6 +54,15 @@ public class Phase2 {
             br.close();
         }
 
+        /**
+         * Checks for a dependency path's index the dependency paths file. Write to context the noun pair, the dependency
+         * path's index, and a count of 1.
+         * @param key a noun pair.
+         * @param value a dependency path.
+         * @param context the Map-Reduce job context.
+         * @throws IOException
+         * @throws InterruptedException
+         */
         @Override
         public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
             long index = 0;
@@ -79,13 +95,18 @@ public class Phase2 {
         private Stemmer stemmer;
         private AmazonS3 s3;
 
+        /**
+         * Setup a Reducer node.
+         * @param context the Map-Reduce job context.
+         * @throws IOException
+         */
         @Override
         public void setup(Context context) throws IOException {
             stemmer = new Stemmer();
             s3 = new AmazonS3Client();
             Region usEast1 = Region.getRegion(Regions.US_EAST_1);
             s3.setRegion(usEast1);
-            System.out.print("Downloading corpus description file from S3... ");
+            System.out.print("Downloading no. of features file from S3... ");
             S3Object object = s3.getObject(new GetObjectRequest("dsps162assignment3benasaf/results", "numOfFeatures.txt"));
             System.out.println("Done.");
             Scanner scanner = new Scanner(new InputStreamReader(object.getObjectContent()));
@@ -109,6 +130,15 @@ public class Phase2 {
             br.close();
         }
 
+        /**
+         *
+         * @param key a noun pair.
+         * @param counts a list of WritableLongPair, each one being an index of a dependency path and a count of its
+         *               appearances, respectively.
+         * @param context the Map-Reduce job context.
+         * @throws IOException
+         * @throws InterruptedException
+         */
         @Override
         public void reduce(Text key, Iterable<WritableLongPair> counts, Context context) throws IOException, InterruptedException {
             if (testSet.containsKey(key.toString())) {
@@ -127,6 +157,13 @@ public class Phase2 {
 
     }
 
+    /**
+     * Main method for this Map-Reduce step. Processes the noun pairs and their dependency paths into a file which
+     * contains the pairs and their features vector. This file would afterwards be processed with PostProcessor.java
+     * into an .arff file for use by WEKA.
+     * @param args an array of 2 Strings: input path, output path.
+     * @throws Exception
+     */
     public static void main(String[] args) throws Exception {
         if (args.length != 2)
             throw new IOException("Phase 2: supply 2 arguments");

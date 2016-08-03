@@ -9,12 +9,19 @@ import com.amazonaws.services.elasticmapreduce.model.*;
 /**
  * Created by asafchelouche on 17/7/16.
  */
+
+
 public class HDetector {
 
     static int numOfFeatures;
 
+    /**
+     * Main method.
+     * @param args an array of a single String - a number to set DPmin
+     * @throws Exception
+     */
     public static void main(String[] args) throws Exception {
-//        // Local single node setup
+//        // Local machine, single node setup. Used in order to debug the M-R logic.
 //        String[] p1args = {"input", "intermediate", args[0]};
 //        String[] p2args = {"intermediate", "output"};
 //
@@ -24,7 +31,7 @@ public class HDetector {
 //        ppargs[0] = String.valueOf(numOfFeatures);
 //        PostProcessor.main(ppargs);
 
-        // EMR setup
+        // EMR setup. This is the main intent of this app.
         AWSCredentials credentials = null;
         try {
             credentials = new ProfileCredentialsProvider().getCredentials();
@@ -51,7 +58,7 @@ public class HDetector {
         HadoopJarStepConfig jarStep2 = new HadoopJarStepConfig()
                 .withJar("s3n://dsps162assignment3benasaf/jars/HDetector.jar")
                 .withMainClass("Phase2")
-                .withArgs("hdfs:///intermediate/", "s3n://dsps162assignment3benasaf/output");
+                .withArgs("hdfs:///intermediate/", "s3n://dsps162assignment3benasaf/output_single_corpus");
 
         StepConfig step2Config = new StepConfig()
                 .withName("Phase 2")
@@ -74,7 +81,8 @@ public class HDetector {
                 .withJobFlowRole("EMR_EC2_DefaultRole")
                 .withServiceRole("EMR_DefaultRole")
                 .withReleaseLabel("emr-4.7.0")
-                .withLogUri("s3n://dsps162assignment3benasaf/logs/").withBootstrapActions();
+                .withLogUri("s3n://dsps162assignment3benasaf/logs/")
+                .withBootstrapActions();
 
         System.out.println("Submitting the JobFlow Request to Amazon EMR and running it...");
         RunJobFlowResult runJobFlowResult = mapReduce.runJobFlow(runFlowRequest);

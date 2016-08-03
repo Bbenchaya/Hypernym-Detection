@@ -20,9 +20,9 @@ public class PostProcessor {
         AmazonS3 s3 = new AmazonS3Client();
         Region usEast1 = Region.getRegion(Regions.US_EAST_1);
         s3.setRegion(usEast1);
-        S3Object object = s3.getObject(new GetObjectRequest("dsps162assignment3benasaf/output", "part-r-00000"));
+        S3Object object = s3.getObject(new GetObjectRequest("dsps162assignment3benasaf/output_single_corpus", "part-r-00000"));
         BufferedReader br = new BufferedReader(new InputStreamReader(object.getObjectContent()));
-        BufferedWriter bw = new BufferedWriter(new FileWriter("processed.arff"));
+        BufferedWriter bw = new BufferedWriter(new FileWriter("processed_single_corpus.arff"));
         String line;
         bw.write(PREFIX);
         for (int i = 0; i < vectorLength; i++)
