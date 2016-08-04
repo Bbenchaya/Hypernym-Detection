@@ -4,7 +4,6 @@ import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
-import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -21,7 +20,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.LinkedList;
+import java.util.HashSet;
 
 /**
  * Created by asafchelouche on 26/7/16.
@@ -145,6 +144,7 @@ public class Phase1 {
         public void setup(Context context) throws IOException {
             pathsFile = new File("paths.txt");
             bw = new BufferedWriter(new FileWriter(pathsFile));
+            numOfFeatures = 0;
         }
 
         /**
@@ -153,20 +153,26 @@ public class Phase1 {
          * in the corpus.
          * Each dependency path that is counted as a feature would be written to a local file.
          * @param key a dependency path.
-         * @param pairsOfNouns all pairs of nouns which appear in this dependency path in the corpus.
+         * @param nounPairs all pairs of nouns which appear in this dependency path in the corpus.
          * @param context the Map-Reduce job context.
          * @throws IOException
          * @throws InterruptedException
          */
         @Override
-        public void reduce(Text key, Iterable<Text> pairsOfNouns, Context context) throws IOException, InterruptedException {
-            LinkedList<Text> pairsCopy = new LinkedList<>();
-            for (Text nounPair : pairsOfNouns)
-                pairsCopy.add(new Text(nounPair));
-            if (pairsCopy.size() >= DPmin) {
-                numOfFeatures++;
+        public void reduce(Text key, Iterable<Text> nounPairs, Context context) throws IOException, InterruptedException {
+            HashSet<Text> set = new HashSet<>(DPmin);
+            for (Text nounPair : nounPairs) {
+                if (set.size() == DPmin)
+                    break;
+                else if (set.contains(nounPair))
+                    continue;
+                else
+                    set.add(nounPair);
+            }
+            if (set.size() >= DPmin) {
                 bw.write(key.toString() + "\n");
-                for (Text nounPair : pairsCopy)
+                numOfFeatures++;
+                for (Text nounPair : nounPairs)
                     context.write(nounPair, key);
             }
         }
@@ -243,7 +249,7 @@ public class Phase1 {
         else
             System.out.println("Phase 1: job completed unsuccessfully");
         Counter counter = job.getCounters().findCounter("org.apache.hadoop.mapreduce.TaskCounter", "REDUCE_INPUT_RECORDS");
-        System.out.println("Num of pairs sent to reducers in phase 1: " + counter.getValue());
+        System.out.println("Number of key-value pairs sent to reducers in phase 1: " + counter.getValue());
     }
 
 }

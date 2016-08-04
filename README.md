@@ -12,7 +12,7 @@ For further information, please consult the [assignment description](https://www
 
 ## System configuration
 
-1. Using Hadoop 2.7.2
+1. Hadoop 2.7.2
 2. Java 1.7.79
 3. OS X 10.10.5 Yosemite
 4. Required definitions in `~/.bash_profile`:
@@ -27,6 +27,7 @@ For further information, please consult the [assignment description](https://www
     export HADOOP_CLASSPATH=${JAVA_HOME}/lib/tools.jar
     export HADOOP_USERNAME=<your username>
 ```
+
 ## How to run this on your computer
 
 * Setup your bucket name in `Phase2.java`.

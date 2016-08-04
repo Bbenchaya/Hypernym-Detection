@@ -154,7 +154,6 @@ public class Phase2 {
             }
         }
 
-
     }
 
     /**
@@ -185,7 +184,7 @@ public class Phase2 {
         else
             System.out.println("Phase 2: job completed unsuccessfully");
         Counter counter = job.getCounters().findCounter("org.apache.hadoop.mapreduce.TaskCounter", "REDUCE_INPUT_RECORDS");
-        System.out.println("Num of pairs sent to reducers in phase 2: " + counter.getValue());
+        System.out.println("Number of key-value pairs sent to reducers in phase 2: " + counter.getValue());
     }
 
 }

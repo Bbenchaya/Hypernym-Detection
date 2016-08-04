@@ -78,14 +78,28 @@ public class WritableLongPair implements WritableComparable {
         return l2;
     }
 
+    /**
+     *
+     * @param l1 the first long to be set in the pair.
+     */
     public void setL1(long l1) {
         this.l1 = l1;
     }
 
+    /**
+     *
+     * @param l2 the second long to be set in the pair.
+     */
     public void setL2(long l2) {
         this.l2 = l2;
     }
 
+    /**
+     *
+     * @param other another instance of WritableLongPair to compare with.
+     * @return 0 if the first elements in the pairs are equal; -1 if this WritableLongPair's first element is smaller;
+     * 1 otherwise.
+     */
     @Override
     public int compareTo(Object other){
         long ol1 = ((WritableLongPair)other).l1;
