@@ -20,7 +20,10 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.HashSet;
+
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 
 /**
  * Created by asafchelouche on 26/7/16.
@@ -63,7 +66,7 @@ public class Phase1 {
             if (nodes == null)
                 return;
             Node root = constructParsedTree(nodes);
-            searchDependencyPath(root, "", "", context);
+            searchDependencyPath(root, "", root, context);
         }
 
         /**
@@ -108,22 +111,23 @@ public class Phase1 {
          * A recursive method to find all shortest paths between nouns in a syntactic tree.
          * @param node a node that is inquired as to being a start or end of a shortest path.
          * @param acc an accumulator that holds the shortest path so far as a String.
-         * @param firstWord the first word of the noun pair.
+         * @param pathStart the first node of the noun pair.
          * @param context the Map-Reduce job context.
          * @throws IOException
          * @throws InterruptedException
          */
-        private void searchDependencyPath(Node node, String acc, String firstWord, Context context) throws IOException, InterruptedException {
+        private void searchDependencyPath(Node node, String acc, Node pathStart, Context context) throws IOException, InterruptedException {
             if (node.isNoun() && acc.isEmpty())
                 for (Node child : node.getChildren())
-                    searchDependencyPath(child, node.getDepencdencyPathComponent(), node.getWord(), context);
+                    searchDependencyPath(child, node.getDepencdencyPathComponent(), node, context);
             else if (node.isNoun()) {
                     Text a = new Text(acc + ":" + node.getDepencdencyPathComponent());
-                    Text b = new Text(firstWord + "$" + node.getWord());
+                    Text b = new Text(pathStart.getStemmedWord() + "$" + node.getStemmedWord() + "#" + pathStart.getWord() + "@" + node.getWord());
                     context.write(a, b);
+                    searchDependencyPath(node, "", node, context);
             } else { // node isn't noun, but the accumulator isn't empty
                 for (Node child : node.getChildren())
-                    searchDependencyPath(child, acc.isEmpty() ? acc : acc + ":" + node.getDepencdencyPathComponent(), firstWord, context);
+                    searchDependencyPath(child, acc.isEmpty() ? acc : acc + ":" + node.getDepencdencyPathComponent(), pathStart, context);
             }
         }
 
@@ -134,6 +138,8 @@ public class Phase1 {
         private File pathsFile;
         private BufferedWriter bw;
         private long numOfFeatures;
+        private final String BUCKET_NAME = "dsps162assignment3benasaf";
+        private boolean local;
 
         /**
          * Setup up a Reducer node.
@@ -142,9 +148,10 @@ public class Phase1 {
          */
         @Override
         public void setup(Context context) throws IOException {
-            pathsFile = new File("paths.txt");
+            pathsFile = new File("resource/paths.txt");
             bw = new BufferedWriter(new FileWriter(pathsFile));
             numOfFeatures = 0;
+            local = context.getConfiguration().get("LOCAL_OR_EMR").equals("true");
         }
 
         /**
@@ -160,14 +167,16 @@ public class Phase1 {
          */
         @Override
         public void reduce(Text key, Iterable<Text> nounPairs, Context context) throws IOException, InterruptedException {
-            HashSet<Text> set = new HashSet<>(DPmin);
+            HashSet<String> set = new HashSet<>(DPmin);
             for (Text nounPair : nounPairs) {
+                String nounPairAsString = nounPair.toString();
+                nounPairAsString = nounPairAsString.substring(0, nounPairAsString.indexOf("#"));
                 if (set.size() == DPmin)
                     break;
-                else if (set.contains(nounPair))
+                else if (set.contains(nounPairAsString))
                     continue;
                 else
-                    set.add(nounPair);
+                    set.add(nounPairAsString);
             }
             if (set.size() >= DPmin) {
                 bw.write(key.toString() + "\n");
@@ -186,36 +195,40 @@ public class Phase1 {
         @Override
         public void cleanup(Context context) throws IOException {
             System.out.println("Features vector length: " + numOfFeatures);
-            AmazonS3 s3 = new AmazonS3Client();
-            Region usEast1 = Region.getRegion(Regions.US_EAST_1);
-            s3.setRegion(usEast1);
             bw.close();
-            HDetector.numOfFeatures = (int)numOfFeatures;
-            try {
-                System.out.print("Uploading the dependency paths file to S3... ");
-                s3.putObject(new PutObjectRequest("dsps162assignment3benasaf/results", "paths.txt", pathsFile));
-                System.out.println("Done.");
-                pathsFile = new File("numOfFeatures.txt");
-                bw = new BufferedWriter(new FileWriter(pathsFile));
-                bw.write(numOfFeatures + "\n");
-                bw.close();
-                System.out.print("Uploading num of features file to S3... ");
-                s3.putObject(new PutObjectRequest("dsps162assignment3benasaf/results", "numOfFeatures.txt", pathsFile));
-                System.out.println("Done.");
-            } catch (AmazonServiceException ase) {
-                System.out.println("Caught an AmazonServiceException, which means your request made it "
-                        + "to Amazon S3, but was rejected with an error response for some reason.");
-                System.out.println("Error Message:    " + ase.getMessage());
-                System.out.println("HTTP Status Code: " + ase.getStatusCode());
-                System.out.println("AWS Error Code:   " + ase.getErrorCode());
-                System.out.println("Error Type:       " + ase.getErrorType());
-                System.out.println("Request ID:       " + ase.getRequestId());
-            } catch (AmazonClientException ace) {
-                System.out.println("Caught an AmazonClientException, which means the client encountered "
-                        + "a serious internal problem while trying to communicate with S3, "
-                        + "such as not being able to access the network.");
-                System.out.println("Error Message: " + ace.getMessage());
+            File numOfFeaturesFile = new File("resource/numOfFeatures.txt");
+            bw = new BufferedWriter(new FileWriter(numOfFeaturesFile));
+            bw.write(numOfFeatures + "\n");
+            bw.close();
+            if (local) {
+                Files.copy(new File("resource/paths.txt").toPath(), new File("resource/pathsListCopy.txt").toPath(), REPLACE_EXISTING);
+            } else {
+                AmazonS3 s3 = new AmazonS3Client();
+                Region usEast1 = Region.getRegion(Regions.US_EAST_1);
+                s3.setRegion(usEast1);
+                try {
+                    System.out.print("Uploading the dependency paths file to S3... ");
+                    s3.putObject(new PutObjectRequest(BUCKET_NAME, "resource/paths.txt", pathsFile));
+                    System.out.println("Done.");
+                    System.out.print("Uploading num of features file to S3... ");
+                    s3.putObject(new PutObjectRequest(BUCKET_NAME, "resource/numOfFeatures.txt", numOfFeaturesFile));
+                    System.out.println("Done.");
+                } catch (AmazonServiceException ase) {
+                    System.out.println("Caught an AmazonServiceException, which means your request made it "
+                            + "to Amazon S3, but was rejected with an error response for some reason.");
+                    System.out.println("Error Message:    " + ase.getMessage());
+                    System.out.println("HTTP Status Code: " + ase.getStatusCode());
+                    System.out.println("AWS Error Code:   " + ase.getErrorCode());
+                    System.out.println("Error Type:       " + ase.getErrorType());
+                    System.out.println("Request ID:       " + ase.getRequestId());
+                } catch (AmazonClientException ace) {
+                    System.out.println("Caught an AmazonClientException, which means the client encountered "
+                            + "a serious internal problem while trying to communicate with S3, "
+                            + "such as not being able to access the network.");
+                    System.out.println("Error Message: " + ace.getMessage());
+                }
             }
+
         }
 
     }
@@ -227,11 +240,12 @@ public class Phase1 {
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
-        if (args.length != 3)
-            throw new IOException("Phase 1: supply 3 arguments");
+        if (args.length != 4)
+            throw new IOException("Phase 1: supply 4 arguments");
         DPmin = Integer.parseInt(args[2]);
         System.out.println("DPmin is set to: " + DPmin);
         Configuration conf = new Configuration();
+        conf.set("LOCAL_OR_EMR", String.valueOf(args[3].equals("local")));
         Job job = Job.getInstance(conf, "Phase 1");
         job.setJarByClass(Phase1.class);
         job.setMapperClass(Mapper1.class);

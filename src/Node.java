@@ -8,6 +8,12 @@ import java.util.List;
 
 class Node {
 
+    private String stemmedWord;
+
+    public String getWord() {
+        return word;
+    }
+
     private String word;
     private String pos_tag; // part of speech
     private String dep_label; // stanford dependency
@@ -17,7 +23,8 @@ class Node {
     Node(String[] args, Stemmer stemmer) {
         stemmer.add(args[0].toCharArray(), args[0].length());
         stemmer.stem();
-        this.word = stemmer.toString();
+        this.word = args[0];
+        this.stemmedWord = stemmer.toString();
         this.pos_tag = args[1];
         this.dep_label = args[2];
         try {
@@ -28,8 +35,8 @@ class Node {
         children = new LinkedList<>();
     }
 
-    String getWord() {
-        return word;
+    String getStemmedWord() {
+        return stemmedWord;
     }
 
     void addChild(Node child) {
@@ -41,7 +48,7 @@ class Node {
     }
 
     String getDepencdencyPathComponent() {
-//        return String.join(":", word, pos_tag); // for later use?
+//        return String.join(":", stemmedWord, pos_tag); // for later use?
         return pos_tag;
     }
 

@@ -39,12 +39,18 @@ public class Phase2 {
         @Override
         public void setup(Context context) throws IOException, InterruptedException {
             count = new WritableLongPair(0, 1);
-            AmazonS3 s3 = new AmazonS3Client();
-            Region usEast1 = Region.getRegion(Regions.US_EAST_1);
-            s3.setRegion(usEast1);
-            S3Object object = s3.getObject(new GetObjectRequest("dsps162assignment3benasaf/results", "paths.txt"));
-            BufferedReader br = new BufferedReader(new InputStreamReader(object.getObjectContent()));
-            pathsListCopy = new File("pathsListCopy.txt");
+            boolean local = context.getConfiguration().get("LOCAL_OR_EMR").equals("true");
+            BufferedReader br;
+            if (local) {
+                br = new BufferedReader(new FileReader("resource/paths.txt"));
+            } else {
+                AmazonS3 s3 = new AmazonS3Client();
+                Region usEast1 = Region.getRegion(Regions.US_EAST_1);
+                s3.setRegion(usEast1);
+                S3Object object = s3.getObject(new GetObjectRequest("dsps162assignment3benasaf", "resource/paths.txt"));
+                br = new BufferedReader(new InputStreamReader(object.getObjectContent()));
+            }
+            pathsListCopy = new File("resource/pathsListCopy.txt");
             BufferedWriter bw = new BufferedWriter(new FileWriter(pathsListCopy));
             String line;
             while ((line = br.readLine()) != null) {
@@ -91,6 +97,7 @@ public class Phase2 {
         private HashMap<String, Boolean> testSet;
         private final String BUCKET = "dsps162assignment3benasaf";
         private final String HYPERNYM_LIST = "resource/hypernym.txt";
+        private final String NUM_OF_FEATURES_FILE = "resource/numOfFeatures.txt";
         private long numOfFeatures;
         private Stemmer stemmer;
         private AmazonS3 s3;
@@ -103,19 +110,27 @@ public class Phase2 {
         @Override
         public void setup(Context context) throws IOException {
             stemmer = new Stemmer();
-            s3 = new AmazonS3Client();
-            Region usEast1 = Region.getRegion(Regions.US_EAST_1);
-            s3.setRegion(usEast1);
-            System.out.print("Downloading no. of features file from S3... ");
-            S3Object object = s3.getObject(new GetObjectRequest("dsps162assignment3benasaf/results", "numOfFeatures.txt"));
-            System.out.println("Done.");
-            Scanner scanner = new Scanner(new InputStreamReader(object.getObjectContent()));
+            boolean local = context.getConfiguration().get("LOCAL_OR_EMR").equals("true");
+            Scanner scanner;
+            BufferedReader br;
+            if (local) {
+                scanner = new Scanner(new FileReader(NUM_OF_FEATURES_FILE));
+                br = new BufferedReader(new FileReader(HYPERNYM_LIST));
+            } else {
+                s3 = new AmazonS3Client();
+                Region usEast1 = Region.getRegion(Regions.US_EAST_1);
+                s3.setRegion(usEast1);
+                System.out.print("Downloading no. of features file from S3... ");
+                S3Object object = s3.getObject(new GetObjectRequest("dsps162assignment3benasaf", NUM_OF_FEATURES_FILE));
+                System.out.println("Done.");
+                scanner = new Scanner(new InputStreamReader(object.getObjectContent()));
+                object = s3.getObject(new GetObjectRequest(BUCKET, HYPERNYM_LIST));
+                br = new BufferedReader(new InputStreamReader(object.getObjectContent()));
+            }
             numOfFeatures = scanner.nextInt();
             System.out.println("Number of features: " + numOfFeatures);
             scanner.close();
-            object = s3.getObject(new GetObjectRequest(BUCKET, HYPERNYM_LIST));
             testSet = new HashMap<>();
-            BufferedReader br = new BufferedReader(new InputStreamReader(object.getObjectContent()));
             String line = null;
             while ((line = br.readLine()) != null) {
                 String[] pieces = line.split("\\s");
@@ -141,7 +156,9 @@ public class Phase2 {
          */
         @Override
         public void reduce(Text key, Iterable<WritableLongPair> counts, Context context) throws IOException, InterruptedException {
-            if (testSet.containsKey(key.toString())) {
+            String keyAsString = key.toString();
+            keyAsString = keyAsString.substring(0, keyAsString.indexOf("#"));
+            if (testSet.containsKey(keyAsString)) {
                 long[] featuresVector = new long[(int) numOfFeatures];
                 for (WritableLongPair count : counts) {
                     featuresVector[(int) count.getL1()] += count.getL2();
@@ -149,7 +166,7 @@ public class Phase2 {
                 StringBuilder sb = new StringBuilder();
                 for (long index : featuresVector)
                     sb.append(index).append(",");
-                sb.append(testSet.get(key.toString()));
+                sb.append(testSet.get(keyAsString));
                 context.write(key, new Text(sb.toString()));
             }
         }
@@ -164,9 +181,10 @@ public class Phase2 {
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
-        if (args.length != 2)
-            throw new IOException("Phase 2: supply 2 arguments");
+        if (args.length != 3)
+            throw new IOException("Phase 2: supply 3 arguments");
         Configuration conf = new Configuration();
+        conf.set("LOCAL_OR_EMR", String.valueOf(args[2].equals("local")));
         Job job = Job.getInstance(conf, "Phase 2");
         job.setJarByClass(Phase2.class);
         job.setMapperClass(Mapper2.class);

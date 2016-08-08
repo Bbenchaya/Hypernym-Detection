@@ -42,5 +42,14 @@
         <jarDirectory url="file://$MODULE_DIR$/../hadoop-2.7.2/share/hadoop/common/lib" recursive="false" type="SOURCES" />
       </library>
     </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/../jars/weka-3-8-0/weka.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
   </component>
 </module>
