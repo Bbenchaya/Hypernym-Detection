@@ -19,8 +19,10 @@ public class HDetector {
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
-        if (!args[1].equals("local") && !args[1].equals("emr"))
+        if (!args[1].equals("local") && !args[1].equals("emr")) {
             System.err.println("Usage: java HDetector <DPmin> [local | emr]");
+            System.exit(1);
+        }
 
         if (args[1].equals("local")) {
             // Local machine, single node setup. Used in order to debug the M-R logic.
@@ -48,7 +50,7 @@ public class HDetector {
             HadoopJarStepConfig jarStep1 = new HadoopJarStepConfig()
                     .withJar("s3n://dsps162assignment3benasaf/jars/HDetector.jar")
                     .withMainClass("Phase1")
-                    .withArgs("s3n://dsps162assignment3benasaf/input_full_corpora", "hdfs:///intermediate/", args[0]);
+                    .withArgs("s3n://dsps162assignment3benasaf/input2", "hdfs:///intermediate/", args[0], "emr");
 
             StepConfig step1Config = new StepConfig()
                     .withName("Phase 1")
@@ -58,7 +60,7 @@ public class HDetector {
             HadoopJarStepConfig jarStep2 = new HadoopJarStepConfig()
                     .withJar("s3n://dsps162assignment3benasaf/jars/HDetector.jar")
                     .withMainClass("Phase2")
-                    .withArgs("hdfs:///intermediate/", "s3n://dsps162assignment3benasaf/output_multi_corpora");
+                    .withArgs("hdfs:///intermediate/", "s3n://dsps162assignment3benasaf/output_single_corpus", "emr");
 
             StepConfig step2Config = new StepConfig()
                     .withName("Phase 2")

@@ -1,4 +1,3 @@
-import com.amazonaws.transform.MapEntry;
 import weka.classifiers.Classifier;
 import weka.classifiers.Evaluation;
 import weka.classifiers.trees.J48;
@@ -8,11 +7,11 @@ import weka.core.converters.ConverterUtils;
 import weka.core.converters.ConverterUtils.DataSource;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileReader;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Scanner;
 
 /**
  * Created by asafchelouche on 8/8/16.
@@ -20,29 +19,35 @@ import java.util.Scanner;
 public class ClassifierTester {
 
     public static void main(String[] args) throws Exception {
+        java.nio.file.Path path = Paths.get("classifier_input");
+        if (!Files.exists(path))
+            Files.createDirectory(path);
+        path = Paths.get("classifier_output");
+        if (!Files.exists(path))
+            Files.createDirectory(path);
         // train
-        Instances train = DataSource.read("processed_single_corpus.arff");
-        train.setClassIndex(train.numAttributes() - 1);
-        Evaluation crossValidate = new Evaluation(train);
+        Instances taggedSet = DataSource.read("classifier_input/processed_single_corpus.arff");
+        taggedSet.setClassIndex(taggedSet.numAttributes() - 1);
+        Evaluation crossValidation = new Evaluation(taggedSet);
         Classifier tree = new J48();
-        crossValidate.crossValidateModel(tree, train, 10, new Debug.Random(1));
-        System.out.println(crossValidate.toSummaryString("\nResults\n\n", false));
-        System.out.println(crossValidate.toClassDetailsString("\nStatistics\n\n"));
+        crossValidation.crossValidateModel(tree, taggedSet, 10, new Debug.Random(1));
+        System.out.println(crossValidation.toSummaryString("\nCross validation - Results\n\n", false));
+        System.out.println(crossValidation.toClassDetailsString("\nCross validation - Statistics\n\n"));
 
         // test
-        tree.buildClassifier(train);
-        Instances testInput = DataSource.read("processed_single_corpus.arff");
-        testInput.setClassIndex(train.numAttributes() - 1);
-        Instances testOutput = new Instances(testInput);
+        tree.buildClassifier(taggedSet);
+        Instances testInput = DataSource.read("classifier_input/processed_single_corpus.arff");
+        testInput.setClassIndex(taggedSet.numAttributes() - 1);
+        Instances classifiedSet = new Instances(testInput);
         for (int i = 0; i < testInput.numInstances(); i++) {
             double clsLabel = tree.classifyInstance(testInput.instance(i));
-            testOutput.instance(i).setClassValue(clsLabel);
+            classifiedSet.instance(i).setClassValue(clsLabel);
         }
-        ConverterUtils.DataSink.write("testOutput.arff", testOutput);
+        ConverterUtils.DataSink.write("classifier_output/classified_set.arff", classifiedSet);
 
-        testOutput = DataSource.read("testOutput.arff");
+        classifiedSet = DataSource.read("classifier_output/classified_set.arff");
 
-        if (testOutput.size() != train.size())
+        if (classifiedSet.size() != taggedSet.size())
             throw new Exception("Training set and tagged set differ in number of entries.");
 
         HashMap<String, String> tp = new HashMap<>(10);
@@ -55,9 +60,9 @@ public class ClassifierTester {
             System.out.println(line);
         }
 
-        for (int i = 0; i < train.size(); i++, line = br.readLine()) {
-            String trainSetEntry = train.get(i).toString();
-            String testSetEntry = testOutput.get(i).toString();
+        for (int i = 0; i < taggedSet.size(); i++, line = br.readLine()) {
+            String trainSetEntry = taggedSet.get(i).toString();
+            String testSetEntry = classifiedSet.get(i).toString();
             boolean trainTruthValue = trainSetEntry.substring(trainSetEntry.lastIndexOf(",") + 1).equals("true");
             boolean testTruthValue = testSetEntry.substring(testSetEntry.lastIndexOf(",") + 1).equals("true");
             String nounPair = line.substring(0, line.indexOf("\t"));

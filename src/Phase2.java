@@ -16,6 +16,8 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Scanner;
 
@@ -50,6 +52,9 @@ public class Phase2 {
                 S3Object object = s3.getObject(new GetObjectRequest("dsps162assignment3benasaf", "resource/paths.txt"));
                 br = new BufferedReader(new InputStreamReader(object.getObjectContent()));
             }
+            java.nio.file.Path path = Paths.get("resource");
+            if (!Files.exists(path))
+                Files.createDirectory(path);
             pathsListCopy = new File("resource/pathsListCopy.txt");
             BufferedWriter bw = new BufferedWriter(new FileWriter(pathsListCopy));
             String line;

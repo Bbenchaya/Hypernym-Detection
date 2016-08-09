@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.HashSet;
 
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
@@ -148,6 +149,9 @@ public class Phase1 {
          */
         @Override
         public void setup(Context context) throws IOException {
+            java.nio.file.Path path = Paths.get("resource");
+            if (!Files.exists(path))
+                Files.createDirectory(path);
             pathsFile = new File("resource/paths.txt");
             bw = new BufferedWriter(new FileWriter(pathsFile));
             numOfFeatures = 0;
