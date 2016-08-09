@@ -32,8 +32,6 @@ import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 
 public class Phase1 {
 
-    private static int DPmin;
-
     public static class Mapper1 extends Mapper<LongWritable, Text, Text, Text> {
 
         private Stemmer stemmer;
@@ -141,6 +139,7 @@ public class Phase1 {
         private long numOfFeatures;
         private final String BUCKET_NAME = "dsps162assignment3benasaf";
         private boolean local;
+        private int DPmin;
 
         /**
          * Setup up a Reducer node.
@@ -156,6 +155,8 @@ public class Phase1 {
             bw = new BufferedWriter(new FileWriter(pathsFile));
             numOfFeatures = 0;
             local = context.getConfiguration().get("LOCAL_OR_EMR").equals("true");
+            DPmin = Integer.parseInt(context.getConfiguration().get("DPMIN"));
+            System.out.println("Reducer: DPmin is set to " + DPmin);
         }
 
         /**
@@ -246,10 +247,10 @@ public class Phase1 {
     public static void main(String[] args) throws Exception {
         if (args.length != 4)
             throw new IOException("Phase 1: supply 4 arguments");
-        DPmin = Integer.parseInt(args[2]);
-        System.out.println("DPmin is set to: " + DPmin);
+        System.out.println("DPmin is set to: " + Integer.parseInt(args[2]));
         Configuration conf = new Configuration();
         conf.set("LOCAL_OR_EMR", String.valueOf(args[3].equals("local")));
+        conf.set("DPMIN", args[2]);
         Job job = Job.getInstance(conf, "Phase 1");
         job.setJarByClass(Phase1.class);
         job.setMapperClass(Mapper1.class);

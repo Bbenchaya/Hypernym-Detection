@@ -6,6 +6,8 @@ import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 /**
  * Created by asafchelouche on 31/7/16.
@@ -22,9 +24,12 @@ public class PostProcessor {
             System.err.println("Usage: java PostProcessor <DPmin> [local | emr]");
             System.exit(1);
         }
+        java.nio.file.Path path = Paths.get("classifier_input");
+        if (!Files.exists(path))
+            Files.createDirectory(path);
         boolean local = args[0].equals("local");
         BufferedReader br1, br2;
-        BufferedWriter bw1, bw2;
+        BufferedWriter bw1, bw2, bwcopy = null;
         if (local) {
             br1 = new BufferedReader(new FileReader("output/part-r-00000"));
             br2 = new BufferedReader(new FileReader("resource/numOfFeatures.txt"));
@@ -37,10 +42,18 @@ public class PostProcessor {
             S3Object object2 = s3.getObject(new GetObjectRequest(BUCKET_NAME, "resource/numOfFeatures.txt"));
             br2 = new BufferedReader(new InputStreamReader(object2.getObjectContent()));
         }
-        bw1 = new BufferedWriter(new FileWriter(new File("ml_input/processed_single_corpus.arff")));
-        bw2 = new BufferedWriter(new FileWriter(new File("ml_input/processed_single_corpus_with_words.arff")));
+        bw1 = new BufferedWriter(new FileWriter(new File("classifier_input/processed_single_corpus.arff")));
+        bw2 = new BufferedWriter(new FileWriter(new File("classifier_input/processed_single_corpus_with_words.arff")));
         int vectorLength = Integer.parseInt(br2.readLine());
         System.out.println("Number of features: " + vectorLength);
+
+        if(!local) {
+            path = Paths.get("output");
+            if (!Files.exists(path))
+                Files.createDirectory(path);
+            bwcopy = new BufferedWriter(new FileWriter("output/part-r-00000"));
+        }
+
         String line;
         bw1.write(PREFIX1);
         bw2.write(PREFIX2);
@@ -51,6 +64,8 @@ public class PostProcessor {
         bw1.write(POSTFIX);
         bw2.write(POSTFIX);
         while ((line = br1.readLine()) != null) {
+            if (!local)
+                bwcopy.write(line);
             bw1.write(line.substring(line.indexOf("\t") + 1) + "\n");
             bw2.write(line.replaceAll("[\t]", ",") + "\n");
         }
@@ -58,6 +73,8 @@ public class PostProcessor {
         br2.close();
         bw1.close();
         bw2.close();
+        if (!local)
+            bwcopy.close();
     }
 
 }
