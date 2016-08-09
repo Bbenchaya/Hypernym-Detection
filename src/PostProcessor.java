@@ -67,7 +67,7 @@ public class PostProcessor {
             if (!local)
                 bwcopy.write(line);
             bw1.write(line.substring(line.indexOf("\t") + 1) + "\n");
-            bw2.write(line.replaceAll("[\t]", ",") + "\n");
+            bw2.write(line + "\n");
         }
         br1.close();
         br2.close();
