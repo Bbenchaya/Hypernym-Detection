@@ -121,7 +121,7 @@ public class Phase1 {
                     searchDependencyPath(child, node.getDepencdencyPathComponent(), node, context);
             else if (node.isNoun()) {
                     Text a = new Text(acc + ":" + node.getDepencdencyPathComponent());
-                    Text b = new Text(pathStart.getStemmedWord() + "$" + node.getStemmedWord() + "#" + pathStart.getWord() + "@" + node.getWord());
+                    Text b = new Text(pathStart.getStemmedWord() + "$" + node.getStemmedWord());
                     context.write(a, b);
                     searchDependencyPath(node, "", node, context);
             } else { // node isn't noun, but the accumulator isn't empty
@@ -172,16 +172,14 @@ public class Phase1 {
          */
         @Override
         public void reduce(Text key, Iterable<Text> nounPairs, Context context) throws IOException, InterruptedException {
-            HashSet<String> set = new HashSet<>(DPmin);
+            HashSet<Text> set = new HashSet<>(DPmin);
             for (Text nounPair : nounPairs) {
-                String nounPairAsString = nounPair.toString();
-                nounPairAsString = nounPairAsString.substring(0, nounPairAsString.indexOf("#"));
                 if (set.size() == DPmin)
                     break;
-                else if (set.contains(nounPairAsString))
+                else if (set.contains(nounPair))
                     continue;
                 else
-                    set.add(nounPairAsString);
+                    set.add(nounPair);
             }
             if (set.size() >= DPmin) {
                 bw.write(key.toString() + "\n");

@@ -41,19 +41,18 @@ public class PostProcessor {
             br1 = new BufferedReader(new InputStreamReader(object1.getObjectContent()));
             S3Object object2 = s3.getObject(new GetObjectRequest(BUCKET_NAME, "resource/numOfFeatures.txt"));
             br2 = new BufferedReader(new InputStreamReader(object2.getObjectContent()));
+            path = Paths.get("output");
+            if (!Files.exists(path))
+                Files.createDirectory(path);
+            /*
+            Copy the M-R output to the local file system. This prevents a second read in ClassifierTester.
+             */
+            bwcopy = new BufferedWriter(new FileWriter("output/part-r-00000"));
         }
         bw1 = new BufferedWriter(new FileWriter(new File("classifier_input/processed_single_corpus.arff")));
         bw2 = new BufferedWriter(new FileWriter(new File("classifier_input/processed_single_corpus_with_words.arff")));
         int vectorLength = Integer.parseInt(br2.readLine());
         System.out.println("Number of features: " + vectorLength);
-
-        if(!local) {
-            path = Paths.get("output");
-            if (!Files.exists(path))
-                Files.createDirectory(path);
-            bwcopy = new BufferedWriter(new FileWriter("output/part-r-00000"));
-        }
-
         String line;
         bw1.write(PREFIX1);
         bw2.write(PREFIX2);
@@ -63,6 +62,7 @@ public class PostProcessor {
         }
         bw1.write(POSTFIX);
         bw2.write(POSTFIX);
+        // populate the arff files with actual data
         while ((line = br1.readLine()) != null) {
             if (!local)
                 bwcopy.write(line);

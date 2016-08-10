@@ -18,8 +18,8 @@ import java.util.Map;
  */
 public class ClassifierTester {
 
-    private static final String HEADER1 = "classifier_input_dpmin8";
-    private static final String HEADER2 = "classifier_output_dpmin8";
+    private static final String HEADER1 = "classifier_input25";
+    private static final String HEADER2 = "classifier_output25";
 
     public static void main(String[] args) throws Exception {
         java.nio.file.Path path = Paths.get(HEADER1);
@@ -28,7 +28,8 @@ public class ClassifierTester {
         path = Paths.get(HEADER2);
         if (!Files.exists(path))
             Files.createDirectory(path);
-        // train
+
+        // cross-validate
         Instances taggedSet = DataSource.read(HEADER1 + "/processed_single_corpus.arff");
         taggedSet.setClassIndex(taggedSet.numAttributes() - 1);
         Evaluation crossValidation = new Evaluation(taggedSet);
@@ -37,7 +38,7 @@ public class ClassifierTester {
         System.out.println(crossValidation.toSummaryString("\nCross validation - Results\n\n", false));
         System.out.println(crossValidation.toClassDetailsString("\nCross validation - Statistics\n\n"));
 
-        // test
+        // train and test
         tree.buildClassifier(taggedSet);
         Instances testInput = DataSource.read(HEADER1 + "/processed_single_corpus.arff");
         testInput.setClassIndex(taggedSet.numAttributes() - 1);
@@ -53,22 +54,22 @@ public class ClassifierTester {
         if (classifiedSet.size() != taggedSet.size())
             throw new Exception("Training set and tagged set differ in number of entries.");
 
-        HashMap<String, String> tp = new HashMap<>(10);
-        HashMap<String, String> fp = new HashMap<>(10);
-        HashMap<String, String> tn = new HashMap<>(10);
-        HashMap<String, String> fn = new HashMap<>(10);
+        HashMap<String, String> tp = new HashMap<>(10); // true positives
+        HashMap<String, String> fp = new HashMap<>(10); // false positives
+        HashMap<String, String> tn = new HashMap<>(10); // true negatives
+        HashMap<String, String> fn = new HashMap<>(10); // false negatives
         BufferedReader br = new BufferedReader(new FileReader(HEADER1 + "/processed_single_corpus_with_words.arff"));
         String line;
-        while (!(line = br.readLine()).contains("@DATA")) {
+        while (!br.readLine().contains("@DATA")) { // skip all of the arff file header
         }
         line = br.readLine();
         for (int i = 0; i < taggedSet.size(); i++, line = br.readLine()) {
             String trainSetEntry = taggedSet.get(i).toString();
             String testSetEntry = classifiedSet.get(i).toString();
-            boolean trainTruthValue = trainSetEntry.substring(trainSetEntry.lastIndexOf("\t") + 1).equals("true");
-            boolean testTruthValue = testSetEntry.substring(testSetEntry.lastIndexOf("\t") + 1).equals("true");
-            String nounPair = line.substring(0, line.indexOf(","));
-            String vector = line.substring(line.indexOf(",") + 1);
+            boolean trainTruthValue = trainSetEntry.substring(trainSetEntry.lastIndexOf(",") + 1).equals("true");
+            boolean testTruthValue = testSetEntry.substring(testSetEntry.lastIndexOf(",") + 1).equals("true");
+            String nounPair = line.substring(0, line.indexOf("\t"));
+            String vector = line.substring(line.indexOf("\t") + 1);
             if (trainTruthValue && testTruthValue && tp.size() < 10)
                 tp.put(nounPair, vector);
             else if (!trainTruthValue && testTruthValue && fp.size() < 10)

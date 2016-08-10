@@ -162,7 +162,6 @@ public class Phase2 {
         @Override
         public void reduce(Text key, Iterable<WritableLongPair> counts, Context context) throws IOException, InterruptedException {
             String keyAsString = key.toString();
-            keyAsString = keyAsString.substring(0, keyAsString.indexOf("#"));
             if (testSet.containsKey(keyAsString)) {
                 long[] featuresVector = new long[(int) numOfFeatures];
                 for (WritableLongPair count : counts) {
